@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Daily Study Planner</title>
+    <link rel="stylesheet" th:href="@{/planner.css}">
+</head>
+<body>
+    <main class="page-shell">
+        <header class="topbar">
+            <a class="brand" th:href="@{/planner}">
+                <span class="brand-mark">S</span>
+                <span>Study<span class="brand-light">space</span></span>
+            </a>
+            <span class="topbar-note">Make today count</span>
+        </header>
+
+        <section class="page-heading">
+            <div>
+                <p class="eyebrow">YOUR STUDY PLAN</p>
+                <h1>Daily planner</h1>
+                <p class="muted">A little progress every day adds up.</p>
+            </div>
+            <nav class="date-nav" aria-label="Choose a day">
+                <a class="icon-button" th:href="@{/planner(date=${day.minusDays(1)})}" aria-label="Previous day">&larr;</a>
+                <form th:action="@{/planner}" method="get" class="date-picker">
+                    <label class="sr-only" for="day-picker">Plan date</label>
+                    <input id="day-picker" type="date" name="date" th:value="${day}">
+                    <button class="button button-muted" type="submit">Go</button>
+                </form>
+                <a class="button button-muted" th:href="@{/planner(date=${today})}">Today</a>
+                <a class="icon-button" th:href="@{/planner(date=${day.plusDays(1)})}" aria-label="Next day">&rarr;</a>
+            </nav>
+        </section>
+
+        <section class="date-banner">
+            <div>
+                <p class="eyebrow">SCHEDULE FOR</p>
+                <h2 th:text="${#temporals.format(day, 'EEEE, MMMM d, yyyy')}">Monday, January 1, 2026</h2>
+            </div>
+            <span class="date-badge" th:if="${day.equals(today)}">TODAY</span>
+        </section>
+
+        <section class="stats-grid" aria-label="Daily progress">
+            <article class="stat-card">
+                <span class="stat-icon">◎</span>
+                <div><p class="stat-label">Tasks completed</p><p class="stat-value"><span th:text="${completedCount}">0</span><span class="stat-total" th:text="| / ${#lists.size(tasks)}|"> / 0</span></p></div>
+            </article>
+            <article class="stat-card">
+                <span class="stat-icon">◷</span>
+                <div><p class="stat-label">Focus time left</p><p class="stat-value"><span th:text="${plannedMinutes}">0</span><span class="stat-unit"> min</span></p></div>
+            </article>
+            <article class="stat-card">
+                <span class="stat-icon">✓</span>
+                <div><p class="stat-label">Focus time completed</p><p class="stat-value"><span th:text="${completedMinutes}">0</span><span class="stat-unit"> min</span></p></div>
+            </article>
+        </section>
+
+        <section class="progress-section" aria-label="Completion progress">
+            <div class="progress-copy"><span>Daily progress</span><strong th:text="|${completionPercent}%|">0%</strong></div>
+            <div class="progress-track" role="progressbar" th:attr="aria-valuenow=${completionPercent}" aria-valuemin="0" aria-valuemax="100">
+                <span class="progress-fill" th:style="|width: ${completionPercent}%|"></span>
+            </div>
+        </section>
+
+        <div class="content-grid">
+            <section class="panel task-panel">
+                <div class="section-heading">
+                    <div><p class="eyebrow">STAY ON TRACK</p><h2>Today's timetable</h2></div>
+                    <span class="task-count" th:text="|${#lists.size(tasks)} tasks|">0 tasks</span>
+                </div>
+
+                <div class="empty-state" th:if="${#lists.isEmpty(tasks)}">
+                    <span class="empty-icon">✦</span>
+                    <h3>A fresh start</h3>
+                    <p>No study sessions planned for this day. Add one to get going.</p>
+                </div>
+
+                <div class="task-list" th:if="${!#lists.isEmpty(tasks)}">
+                    <article class="task-row" th:each="t : ${tasks}" th:classappend="${t.status == T(com.kyro.daily_study_planner.StudyTask.TaskStatus).DONE} ? ' is-done' : (${t.status == T(com.kyro.daily_study_planner.StudyTask.TaskStatus).SKIPPED} ? ' is-skipped' : '')">
+                        <div class="task-time">
+                            <strong th:text="${t.startTime != null ? #temporals.format(t.startTime, 'h:mm a') : '--:--'}">6:00 AM</strong>
+                            <span th:text="|${t.durationMinutes} min|">30 min</span>
+                        </div>
+                        <div class="task-details">
+                            <h3 th:text="${t.title}">Study task</h3>
+                            <p><span th:text="${t.subject}">Subject</span><span class="task-separator">·</span><span th:text="${#strings.replace(t.type.name(), '_', ' ')}">READING</span></p>
+                        </div>
+                        <span class="status-pill" th:classappend="${#strings.toLowerCase(t.status.name())}" th:text="${#strings.toLowerCase(t.status.name())}">planned</span>
+                        <div class="task-actions">
+                            <form th:action="@{/planner/{id}/status(id=${t.id})}" method="post" th:if="${t.status != T(com.kyro.daily_study_planner.StudyTask.TaskStatus).DONE}">
+                                <button class="icon-action complete-action" type="submit" name="status" value="DONE" th:aria-label="|Mark ${t.title} complete|" title="Mark complete">✓</button>
+                            </form>
+                            <form th:action="@{/planner/{id}/status(id=${t.id})}" method="post" th:if="${t.status == T(com.kyro.daily_study_planner.StudyTask.TaskStatus).DONE}">
+                                <button class="text-action" type="submit" name="status" value="PLANNED">Reopen</button>
+                            </form>
+                            <form th:action="@{/planner/{id}/status(id=${t.id})}" method="post" th:if="${t.status == T(com.kyro.daily_study_planner.StudyTask.TaskStatus).PLANNED}">
+                                <button class="text-action" type="submit" name="status" value="SKIPPED">Skip</button>
+                            </form>
+                            <form th:action="@{/planner/{id}/delete(id=${t.id})}" method="post">
+                                <button class="icon-action delete-action" type="submit" th:aria-label="|Delete ${t.title}|" title="Delete task">&times;</button>
+                            </form>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <aside class="panel add-panel">
+                <div class="section-heading">
+                    <div><p class="eyebrow">BUILD YOUR ROUTINE</p><h2>Add a session</h2></div>
+                    <span class="add-mark">+</span>
+                </div>
+                <form class="task-form" th:object="${task}" th:action="@{/planner/add}" method="post">
+                    <label for="title">What will you study?</label>
+                    <input id="title" type="text" th:field="*{title}" placeholder="e.g. Chapter 4 exercises" required maxlength="255">
+                    <span class="field-error" th:if="${#fields.hasErrors('title')}" th:errors="*{title}"></span>
+
+                    <label for="subject">Subject</label>
+                    <input id="subject" type="text" th:field="*{subject}" placeholder="e.g. Biology" required maxlength="255">
+                    <span class="field-error" th:if="${#fields.hasErrors('subject')}" th:errors="*{subject}"></span>
+
+                    <div class="form-row">
+                        <div>
+                            <label for="type">Session type</label>
+                            <select id="type" th:field="*{type}">
+                                <option th:each="t : ${taskTypes}" th:value="${t}" th:text="${#strings.replace(t.name(), '_', ' ')}"></option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="durationMinutes">Duration</label>
+                            <div class="duration-input"><input id="durationMinutes" type="number" th:field="*{durationMinutes}" min="1" max="720" required><span>min</span></div>
+                            <span class="field-error" th:if="${#fields.hasErrors('durationMinutes')}" th:errors="*{durationMinutes}"></span>
+                        </div>
+                    </div>
+
+                    <label for="plannedDate">Date</label>
+                    <input id="plannedDate" type="date" th:field="*{plannedDate}" required>
+                    <span class="field-error" th:if="${#fields.hasErrors('plannedDate')}" th:errors="*{plannedDate}"></span>
+
+                    <button class="button button-primary submit-button" type="submit">Add to my plan <span aria-hidden="true">&rarr;</span></button>
+                    <p class="form-hint">Sessions are scheduled from 6:00 AM with a 10-minute break between each.</p>
+                </form>
+            </aside>
+        </div>
+        <footer>Small steps, steady progress.</footer>
+    </main>
+</body>
+</html>

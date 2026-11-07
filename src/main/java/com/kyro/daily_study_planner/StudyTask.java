@@ -34,6 +34,7 @@ public class StudyTask {
     private LocalDate plannedDate;
 
     @Positive(message = "Duration must be greater than zero")
+    @Max(value = 720, message = "Duration cannot exceed 720 minutes")
     private int durationMinutes;
 
     private LocalTime startTime;
